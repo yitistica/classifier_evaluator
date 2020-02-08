@@ -2,6 +2,16 @@
 Metrics to assess the performance on a classification model
 Measures are from: https://en.wikipedia.org/wiki/Confusion_matrix;
 
+———————————————————————————————————————————————————————————————————————————
+         |                                       actual condition          |
+         |—————————————————————————————————————————————————————————————————
+         |                    |    actual positive    |  actual negative   |
+         |—————————————————————————————————————————————————————————————————
+Predicted| predicted positive |     true positive     |   false positive   |
+condition|—————————————————————————————————————————————————————————————————
+         | predicted negative |     false negative    |   true negative    |
+—————————|—————————————————————————————————————————————————————————————————
+
 Terms and calculations:
     thresholds: pre-set thresholds on which the follower metrics are calculated;
     TP: true positive, power, the number of obs. that is conditioned positive and predicted positive;
@@ -29,12 +39,14 @@ Terms and calculations:
 import numpy as np
 from typing import Union, Tuple
 
+from classifier_evaluator.styles.format_confusion_matrix_by_prob_df import convert_confusion_matrix_by_prob_to_table_with_reformat_precision
+
 _FULL_METRICS = ['TP', 'FN', 'FP', 'TN',
                  'Recall', 'FNR', 'FPR', 'TNR', 'Precision', 'FOR', 'FDR', 'NPV',
                  'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
 
 
-def rate_accuracy(true: np.ndarray, predicted: np.ndarray) -> float:
+def accuracy_rate(true: np.ndarray, predicted: np.ndarray) -> float:
     """
     calculate accuracy rate (ACC):
         ( true positive + true negative ) / sample size
@@ -44,8 +56,7 @@ def rate_accuracy(true: np.ndarray, predicted: np.ndarray) -> float:
     :return: float, fraction, accuracy rate
     """
     sample_size = len(true)
-    accuracy_rate = (predicted == true).sum() / sample_size
-    return accuracy_rate
+    return (predicted == true).sum() / sample_size
 
 
 def accuracy_rate_by_prob(true: np.ndarray, predicted_prob: np.ndarray,
@@ -66,14 +77,164 @@ def accuracy_rate_by_prob(true: np.ndarray, predicted_prob: np.ndarray,
     true = (true == pos_label)
     predicted = (predicted_prob >= threshold)
 
-    accuracy_rate = rate_accuracy(true=true, predicted=predicted)
+    return accuracy_rate(true=true, predicted=predicted)
 
-    return accuracy_rate
+
+def _condition_counter(true: np.ndarray,
+                       predicted: np.ndarray,
+                       true_condition: Union[bool, int, str, list, tuple, set],
+                       predicted_condition: Union[bool, int, str, list, tuple, set]) -> int:
+    """
+    count the number of instances such that their true value being true_condition and predicted being predicted_condition;
+    :param true: numpy.ndarray(shape=(m), ), an array of true classes;
+    :param predicted: numpy.ndarray(shape=(m), ), an array of predicted classes;
+    :param true_condition: [bool, int, str, list, tuple, set], the true condition(s) that is being count;
+    :param predicted_condition: [bool, int, str, list, tuple, set], the predicted condition(s) that is being count;
+    :return: total count of the instance with the joined condition, int;
+    """
+    if isinstance(true_condition, (str, bool, int)):
+        true_condition = [true_condition]
+    elif isinstance(true_condition, set):
+        true_condition = list(true_condition)
+    elif isinstance(true_condition, (list, tuple)):
+        pass
+    else:
+        raise TypeError(f"Type of true conditions {type(true_condition)} is not acceptable.")
+
+    if isinstance(predicted_condition, (str, bool, int)):
+        predicted_condition = [predicted_condition]
+    elif isinstance(predicted_condition, set):
+        predicted_condition = list(predicted_condition)
+    elif isinstance(predicted_condition, (list, tuple)):
+        pass
+    else:
+        raise TypeError(f"Type of true conditions {type(predicted_condition)} is not acceptable.")
+
+    return (np.isin(true, true_condition) & np.isin(predicted, predicted_condition)).sum()
+
+
+def prevalence(series: np.ndarray,
+               condition: Union[bool, int, str, list, tuple, set],
+               rate: bool = False) -> Union[int, float]:
+    """
+    count the number of instances with (one of) the given condition(s);
+    :param series: numpy.ndarray(shape=(m), ) containing different conditions;
+    :param condition: [bool, int, str, list, tuple, set], a selected condition;
+    :param rate: bool, return prevalence rate instead of count;
+    :return: the count of the instances with the condition(s);
+    """
+    if isinstance(condition, (str, bool, int)):
+        condition = [condition]
+    elif isinstance(condition, set):
+        condition = list(condition)
+    elif isinstance(condition, (list, tuple)):
+        pass
+    else:
+        raise TypeError(f"Type of true conditions {type(condition)} is not acceptable.")
+
+    if rate:
+        return np.isin(series, condition).sum() / series.size if series.size > 0 else 0
+    else:
+        return np.isin(series, condition).sum()
+
+
+def recall_rate(true: np.ndarray,
+                predicted: np.ndarray,
+                condition: Union[bool, int, str, list, tuple, set]) -> float:
+    """
+    compute recall rate, refer module description for calculation;
+    :param true: numpy.ndarray(shape=(m), ), an array of true classes;
+    :param predicted: numpy.ndarray(shape=(m), ), an array of predicted classes;
+    :param condition: [bool, int, str, list, tuple, set], the true condition(s) that is being count;
+    :return: recall rate, float;
+    """
+    joint_condition_count = _condition_counter(true=true,
+                                               predicted=predicted,
+                                               true_condition=condition,
+                                               predicted_condition=condition)
+
+    prevalence_count = prevalence(series=true,
+                                  condition=condition,
+                                  rate=False)
+
+    recall = joint_condition_count / prevalence_count if prevalence_count > 0 else 0
+
+    return recall
+
+
+def recall_rate_by_prob(true: np.ndarray,
+                        predicted_prob: np.ndarray,
+                        threshold: float = 0.5,
+                        pos_label: Union[bool, int, str] = True) -> float:
+    """
+    compute recall rate when predicted prob is given, refer module description for calculation;
+    :param true: numpy.ndarray(shape=(m), ), an array of true classes;
+    :param predicted_prob: numpy.ndarray(shape=(m), ), an array of predicted probability of being positive classe;
+    :param threshold: float, the threshold over which predicted probabilities will be counted as positive;
+    :param pos_label: [bool, int, str], the true condition(s) that is being count;
+    :return: recall rate, float;
+    """
+
+    true = true == pos_label
+    predicted = predicted_prob >= threshold
+
+    recall = recall_rate(true=true,
+                         predicted=predicted,
+                         condition=True)
+
+    return recall
+
+
+def precision_rate(true: np.ndarray,
+                   predicted: np.ndarray,
+                   condition: Union[bool, int, str, list, tuple, set]) -> float:
+    """
+    compute precision rate, refer module description for calculation;
+    :param true: numpy.ndarray(shape=(m), ), an array of true classes;
+    :param predicted: numpy.ndarray(shape=(m), ), an array of predicted classes;
+    :param condition: [bool, int, str, list, tuple, set], the true condition(s) that is being count;
+    :return: precision rate, float;
+    """
+    joint_condition_count = _condition_counter(true=true,
+                                               predicted=predicted,
+                                               true_condition=condition,
+                                               predicted_condition=condition)
+
+    prevalence_count = prevalence(series=predicted,
+                                  condition=condition,
+                                  rate=False)
+
+    precision = joint_condition_count / prevalence_count if prevalence_count > 0 else 0
+
+    return precision
+
+
+def precision_rate_by_prob(true: np.ndarray,
+                           predicted_prob: np.ndarray,
+                           threshold: float = 0.5,
+                           pos_label: Union[bool, int, str] = True) -> float:
+    """
+    compute precision rate when predicted prob is given, refer module description for calculation;
+    :param true: numpy.ndarray(shape=(m), ), an array of true classes;
+    :param predicted_prob: numpy.ndarray(shape=(m), ), an array of predicted probability of being positive classe;
+    :param threshold: float, the threshold over which predicted probabilities will be counted as positive;
+    :param pos_label: [bool, int, str], the true condition(s) that is being count;
+    :return: precision rate, float;
+    """
+
+    true = true == pos_label
+    predicted = predicted_prob >= threshold
+
+    precision = precision_rate(true=true,
+                               predicted=predicted,
+                               condition=True)
+
+    return precision
 
 
 def confusion_matrix(true: np.ndarray, predicted: np.ndarray, normalize: Union[bool, str] = False) -> Union[tuple, dict]:
     """
-    calculate confusion matrix
+    compute confusion matrix
 
         terms: pair condition: joined condition of both observed condition and predicted condition, e.g., (True, False);
                true condition: observed condition of an instance, e.g., True;
@@ -89,13 +250,14 @@ def confusion_matrix(true: np.ndarray, predicted: np.ndarray, normalize: Union[b
         value: [int, float], the number of instances of that pair condition (true_class, predicted_class), or
             normalisation of the number of the instances of that pair condition;
     """
-    labels = set(true).union(set(predicted))
+    labels = [label.item() for label in set(true).union(set(predicted))]  # .item convert numpy dtypes to native types;
 
     confusion_matrix_dict = dict()
     for true_label in labels:
         for predicted_label in labels:
             confusion_matrix_dict[(true_label, predicted_label)] = \
-                ((true == true_label) & (predicted == predicted_label)).sum()
+                _condition_counter(true=true, predicted=predicted,
+                                   true_condition=true_label, predicted_condition=predicted_label)
 
     if normalize:
         normalize_factor = 0 if normalize != 'predicted' else 1
@@ -134,17 +296,20 @@ def confusion_matrix_by_prob(true: np.ndarray,
                              predicted_prob: np.ndarray,
                              thresholds: Union[list, tuple, np.ndarray, None] = None,
                              pos_label: Union[bool, str, int] = True,
-                             output_metrics=None):
+                             output_metrics=None,
+                             table: bool = True,
+                             **kwargs):
     """
     confusion matrix for binary classification according to a given set of thresholds;
 
     :param true: numpy.ndarray(shape=(m), ), an array of true classes;
     :param predicted_prob: numpy.ndarray(shape=(m), ),
         an array of predicted probabilities of being the positive class;
-    :param thresholds: [list, tuple, np.array, None] the threshold set on predicted probabilities
+    :param thresholds: [list, tuple, np.array, None] the thresholds set on predicted probabilities
         such that any predicted probability greater or equal to the threshold will be classified as the positive class;
     :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
     :param output_metrics: list, metrics to be outputted if selected;
+    :param table: bool, if exported as a pd table table;
     :return: dict, a set of confusion matrices, {threshold: {metric_name: metric_value, ...}, ...};
     """
     # convert true series to positive series
@@ -181,10 +346,10 @@ def confusion_matrix_by_prob(true: np.ndarray,
             metrics_by_threshold['FN'] = confusion_matrix_dict[(True, False)]
 
         if 'FP' in output_metrics:
-            metrics_by_threshold['FN'] = confusion_matrix_dict[(False, True)]
+            metrics_by_threshold['FP'] = confusion_matrix_dict[(False, True)]
 
         if 'TN' in output_metrics:
-            metrics_by_threshold['FN'] = confusion_matrix_dict[(False, False)]
+            metrics_by_threshold['TN'] = confusion_matrix_dict[(False, False)]
 
         if 'Recall' in output_metrics:
             metrics_by_threshold['Recall'] = confusion_matrix_nor_true[(True, True)]
@@ -250,6 +415,15 @@ def confusion_matrix_by_prob(true: np.ndarray,
 
         metrics_by_thresholds[threshold] = metrics_by_threshold
 
+    if table:
+        if 'metric_order' in kwargs:
+            metric_order = kwargs['metric_order']
+        else:
+            metric_order = None
+        metrics_by_thresholds = \
+            convert_confusion_matrix_by_prob_to_table_with_reformat_precision(metrics_by_thresholds=metrics_by_thresholds,
+                                                                              metric_order=metric_order)
+
     return metrics_by_thresholds
 
 
@@ -266,11 +440,12 @@ def roc(true: np.ndarray, predicted_prob: np.ndarray, pos_label: Union[bool, str
     true = true == pos_label
 
     # sort by predicted prob:
-    true = true[np.argsort(predicted_prob)]
-    predicted_prob = predicted_prob[np.argsort(predicted_prob)]
+    sorted_index = np.argsort(predicted_prob)[::-1]
+    true = true[sorted_index]
+    predicted_prob = predicted_prob[sorted_index]
 
-    tp = true.sum()
-    fp = len(true) - tp
+    tp = 0
+    fp = 0
     condition_positive = true.sum()
     condition_negative = (1 - true).sum()
 
@@ -279,11 +454,11 @@ def roc(true: np.ndarray, predicted_prob: np.ndarray, pos_label: Union[bool, str
     tpr, fpr = [], []
     for i in range(len(thresholds)):
         if true[i] == 1:
-            tp -= 1
+            tp += 1
         elif true[i] == 0:
-            fp -= 1
+            fp += 1
 
-        tpr_i = tp / condition_positive
+        tpr_i = tp / condition_positive  # consistent with confusion matrix by prob;
         fpr_i = fp / condition_negative
 
         tpr.append(tpr_i)
@@ -332,7 +507,8 @@ def roc_auc(**kwargs) -> float:
 
 def roc_margins(**kwargs) -> dict:
     """
-    compute AUC (area under the curve):
+    compute differences between a fpr and tpr:
+        also computes
     :param kwargs:
         set 1:
         fpr: numpy.ndarray(shape=(m), ), false positive rate;
@@ -342,7 +518,12 @@ def roc_margins(**kwargs) -> dict:
         predicted_prob: numpy.ndarray(shape=(m), ),
             an array of predicted probabilities of being the positive class;
         pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
-    :return: auc, float, area under the curve;
+    :return: roc margin dict, dict, including:
+        fpr: false positive rate, numpy.ndarray(shape=(m), );
+        tpr, true positive rate, numpy.ndarray(shape=(m), );
+        margins: margin curve, numpy.ndarray(shape=(m), );
+        max_margin: the maximum margin between fpr and tpr;
+        max_margin_threshold: threshold for such maximum margin;
     """
 
     if ('fpr' in kwargs) and ('tpr' in kwargs) and ('thresholds' in kwargs):
