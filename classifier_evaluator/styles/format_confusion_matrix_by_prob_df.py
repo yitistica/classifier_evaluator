@@ -2,7 +2,7 @@
 reformat confusion matrix by prob data frame;
 """
 import pandas as pd
-from typing import Union
+from typing import Optional
 
 
 _CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': '{:,.0f}',
@@ -32,7 +32,7 @@ _DEFAULT_METRIC_ORDER = ['TP', 'FN', 'FP', 'TN',
 
 
 def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFrame,
-                                             digit_format: Union[dict, None] = None) -> pd.DataFrame:
+                                             digit_format: Optional[dict] = None) -> pd.DataFrame:
     """
     reformat the digit representations confusion matrix by prob data frame by:
         1. finding maximum number of decimal places for threshold series, and set such precision to each threshold,
@@ -76,7 +76,7 @@ def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFr
 
 
 def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
-                                               metric_order: Union[list, None] = None) -> pd.DataFrame:
+                                               metric_order: Optional[list] = None) -> pd.DataFrame:
     """
     reformat the confusion matrix by prob from dict format to data frame format;
 
@@ -109,8 +109,8 @@ def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
 
 
 def convert_confusion_matrix_by_prob_to_table_with_reformat_precision(metrics_by_thresholds: dict,
-                                                                      metric_order: Union[list, None] = None,
-                                                                      digit_format: Union[dict, None] = None) -> pd.DataFrame:
+                                                                      metric_order: Optional[list] = None,
+                                                                      digit_format: Optional[dict] = None) -> pd.DataFrame:
     """
     wrap function that perform conversion of confusion matrix by prob from dict to pandas.DataFrame with reformatting;
 
