@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Created on 2018-07-01, Last Modified on 2020-02-10;
+@author Yi.Q
+"""
 """
 Metrics to assess the performance on a classification model
 Measures are from: https://en.wikipedia.org/wiki/Confusion_matrix;
@@ -296,7 +301,7 @@ def normalize_confusion_matrix(confusion_matrix_dict: dict, normalize_index: int
 
 def confusion_matrix_by_prob(true: np.ndarray,
                              predicted_prob: np.ndarray,
-                             thresholds: Optional[list, tuple, np.ndarray] = None,
+                             thresholds: Optional[Union[list, tuple, np.ndarray]] = None,
                              pos_label: Union[bool, str, int] = _DEFAULT_POS_LABEL,
                              output_metrics: Optional[list] = None,
                              table: bool = True,

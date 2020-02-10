@@ -1,0 +1,2 @@
+from classifier_evaluator.visualisations.confusion_matrix_plot import plot_confusion_matrix_by_dict, \
+    plot_confusion_matrix_on_predicted_series

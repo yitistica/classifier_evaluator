@@ -2,6 +2,7 @@ from typing import Union, Optional
 import numpy as np
 import pandas as pd
 
+from classifier_evaluator.pre_process import data_type_converter
 from classifier_evaluator.metrics import accuracy_rate_by_prob, recall_rate_by_prob, precision_rate_by_prob, \
     confusion_matrix_by_prob, roc, roc_auc
 
@@ -10,22 +11,6 @@ _DEFAULT_THRESHOLD = 0.5
 _DEFAULT_THRESHOLDS = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1]
 
 _TRUE_SERIES_NAME = 'true'
-
-
-def _data_type_converter(series: Union[pd.Series, np.ndarray, list]) -> np.ndarray:
-    """
-    convert list or pandas.Series to numpy.ndarray;
-    :param series: [list, pandas.Series], a series;
-    :return: numpy.ndarray(shape=(m), ), the converted array;
-    """
-    if isinstance(series, list):
-        series = np.array(series)
-    elif isinstance(series, np.ndarray):
-        pass
-    elif isinstance(series, pd.Series):
-        series = series.values()
-
-    return series
 
 
 class OccupiedSeriesNameError(Exception):
@@ -44,14 +29,14 @@ class ClassifierDataPanel(object):
     """
 
     def __init__(self,
-                 true_series: Optional[pd.Series, np.ndarray, list] = None,
+                 true_series: Optional[Union[pd.Series, np.ndarray, list]] = None,
                  pos_label: Union[bool, str, int] = True,
                  *predicted_prob_series: Union[pd.Series, np.ndarray, list],
                  **named_predicted_prob_series: Union[pd.Series, np.ndarray, list]):
         """
         :param true_series: [pd.Series, np.ndarray, list, None], a series of true classes;
         :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
-        :param predicted_prob: [pd.Series, np.ndarray, list, None],
+        :param predicted_prob_series: [pd.Series, np.ndarray, list, None],
             a series of predicted probabilities of being the positive class (without a given name);
         :param named_predicted_prob_series: [pd.Series, np.ndarray, list, None],
             a series of predicted probabilities of being the positive class (with a given name);
@@ -112,7 +97,7 @@ class ClassifierDataPanel(object):
         :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
         :return:
         """
-        self.series[_TRUE_SERIES_NAME] = _data_type_converter(series=series)
+        self.series[_TRUE_SERIES_NAME] = data_type_converter(series=series)
         self.pos_label = pos_label
 
     def inject_predicted_prob(self,
@@ -126,7 +111,7 @@ class ClassifierDataPanel(object):
         """
 
         series_name = self._check_series_name(proposed_name=series_name)
-        self.series[series_name] = _data_type_converter(series=series)
+        self.series[series_name] = data_type_converter(series=series)
 
     def __add__(self, series: Union[pd.Series, np.ndarray, list]):
         """
@@ -159,7 +144,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
     panel that perform classifier evaluations;
     """
 
-    def __init__(self, thresholds: Optional[pd.Series, np.ndarray, list] = None,
+    def __init__(self, thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
                  *args, **kwargs):
         """
         params in ClassifierDataPanel;
@@ -169,7 +154,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         self.thresholds = None
         self.set_default_thresholds(thresholds=thresholds)
 
-    def set_default_thresholds(self, thresholds: Optional[pd.Series, np.ndarray, list] = None):
+    def set_default_thresholds(self, thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None):
         """
         set default thresholds for confusion matrix by prob;
         :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
@@ -179,11 +164,11 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         if not thresholds:
             thresholds = _DEFAULT_THRESHOLDS
 
-        self.thresholds = _data_type_converter(series=thresholds)
+        self.thresholds = data_type_converter(series=thresholds)
 
     def accuracy_rate_by_prob(self,
-                              thresholds: Optional[pd.Series, np.ndarray, list] = None,
-                              focus_series: Optional[list, set] = None):
+                              thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
+                              focus_series: Optional[Union[list, set]] = None):
         """
         compute accuracy rate for different thresholds for different predicted prob series;
         :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
@@ -215,8 +200,8 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         return results
 
     def recall_by_prob(self,
-                       thresholds: Optional[pd.Series, np.ndarray, list] = None,
-                       focus_series: Optional[list, set] = None):
+                       thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
+                       focus_series: Optional[Union[list, set]] = None):
         """
         compute recall rate for different thresholds for different predicted prob series;
         :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
@@ -249,7 +234,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
 
     def precision_by_prob(self,
                           thresholds: Optional[list] = None,
-                          focus_series: Optional[list, set] = None):
+                          focus_series: Optional[Union[list, set]] = None):
         """
         compute precision rate for different thresholds for different predicted prob series;
         :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
@@ -283,7 +268,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
     def confusion_matrix_by_prob(self,
                                  thresholds: Optional[list] = None,
                                  output_metrics: Optional[list] = None,
-                                 focus_series: Optional[list, set] = None,
+                                 focus_series: Optional[Union[list, set]] = None,
                                  table: bool = True):
         """
         confusion matrix for binary classification according to a given set of thresholds;
@@ -318,7 +303,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         return results
 
     def roc(self,
-            focus_series: Optional[list, set] = None,
+            focus_series: Optional[Union[list, set]] = None,
             auc: bool = False):
         """
         compute roc series;
