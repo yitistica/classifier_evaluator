@@ -6,6 +6,7 @@ from classifier_evaluator.pre_process import data_type_converter
 from classifier_evaluator.metrics import accuracy_rate_by_prob, recall_rate_by_prob, precision_rate_by_prob, \
     confusion_matrix_by_prob, roc, roc_auc
 
+
 _DEFAULT_THRESHOLD = 0.5
 
 _DEFAULT_THRESHOLDS = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1]
@@ -330,3 +331,4 @@ class ClassifierEvalPanel(ClassifierDataPanel):
                 results[series_name]['auc'] = roc_auc(fpr=fpr, tpr=tpr, thresholds=thresholds)
 
         return results
+

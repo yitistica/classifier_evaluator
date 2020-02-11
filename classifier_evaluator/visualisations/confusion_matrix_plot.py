@@ -29,7 +29,9 @@ def plot_confusion_matrix_by_dict(confusion_matrix_dict: dict,
     :param kwargs:
         :param colormap: dict, that specify the color map for diagonal, non-diagonal, and summary elements in the matrix
             plot;
-        :param figure_size: tuple, the size of the figure;
+        :param figure_size: tuple, e.g., (10, 10), the size of the figure;
+        :param subtitle: str, sub title given to the plot;
+        :param save: [bool, str], if it is saved to an external .png file;
     :return: plt.show or saved image;
     """
 
