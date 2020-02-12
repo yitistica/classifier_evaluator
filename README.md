@@ -15,7 +15,7 @@ The evaluation metrics include:
 - Visualisations of multiple curves;
 - Dual-Threshold;
 
-### Usage
+## Usage
 
 #### 1. Using Standalone Metrics
 Metrics can be accessed in the `metrics` module.
@@ -49,10 +49,10 @@ When injecting the predicted values of a binary case into the panel, use predict
 from classifier_evaluator import vis
 ```
 _**confusion matrix plot**_
-<p align="center"> <img src='readme/confusion_matrix_plot.png' align="center" height="500px"> </p>
+<p align="center"> <img src='readme/confusion_matrix_plot.png' align="center" height="700px"> </p>
 
 _**roc plot**_
-<p align="center"> <img src='readme/roc_svm_v_rf.png' align="center" height="500px"> </p>
+<p align="center"> <img src='readme/roc_svm_v_rf.png' align="center" height="700px"> </p>
 
 _**trade off plot**_
-<p align="center"> <img src='readme/trade_off_svm_v_rf.png' align="center" height="500px"> </p>
+<p align="center"> <img src='readme/trade_off_svm_v_rf.png' align="center" height="700px"> </p>
