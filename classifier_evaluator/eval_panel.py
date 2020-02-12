@@ -1,26 +1,18 @@
-from typing import Union
+from typing import Union, Optional
 import numpy as np
 import pandas as pd
 
-from classifier_evaluator.metrics import accuracy_rate_by_prob, \
-    confusion_matrix_by_prob
+from classifier_evaluator.pre_process import data_type_converter
+from classifier_evaluator.metrics import accuracy_rate_by_prob, recall_rate_by_prob, precision_rate_by_prob, \
+    confusion_matrix_by_prob, roc, roc_auc
+
+_DEFAULT_POS_LABEL = True
 
 _DEFAULT_THRESHOLD = 0.5
 
 _DEFAULT_THRESHOLDS = [0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1]
 
 _TRUE_SERIES_NAME = 'true'
-
-
-def _data_type_converter(series: Union[pd.Series, np.ndarray, list]) -> np.ndarray:
-    if isinstance(series, list):
-        series = np.array(series)
-    elif isinstance(series, np.ndarray):
-        pass
-    elif isinstance(series, pd.Series):
-        series = series.values()
-
-    return series
 
 
 class OccupiedSeriesNameError(Exception):
@@ -34,29 +26,41 @@ class SeriesNotFound(Exception):
 
 
 class ClassifierDataPanel(object):
+    """
+    data panel that manages a true series and predicted prob series;
+    """
+
     def __init__(self,
-                 true_series=None,
-                 pos_label: Union[bool, str, int] = True,
+                 pos_label: Optional[Union[bool, str, int]] = None,
+                 true_series: Optional[Union[pd.Series, np.ndarray, list]] = None,
                  *predicted_prob_series: Union[pd.Series, np.ndarray, list],
                  **named_predicted_prob_series: Union[pd.Series, np.ndarray, list]):
-
+        """
+        :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
+        :param true_series: [pd.Series, np.ndarray, list, None], a series of true classes;
+        :param predicted_prob_series: [pd.Series, np.ndarray, list, None],
+            a series of predicted probabilities of being the positive class (without a given name);
+        :param named_predicted_prob_series: [pd.Series, np.ndarray, list, None],
+            a series of predicted probabilities of being the positive class (with a given name);
+        """
         self.series = dict()
         self.pos_label = None
 
-        if true_series:
+        if true_series is not None:
             self.inject_true_series(series=true_series, pos_label=pos_label)
 
         for series in predicted_prob_series:
-            series_name = self._check_series_name(proposed_name=None)
-            self.series[series_name] = series
+            self.inject_predicted_prob(series=series, series_name=None)
 
         for series_name, series in named_predicted_prob_series.items():
-            series_name = self._check_series_name(proposed_name=series_name)
-            self.series[series_name] = series
-
-        self.focus_series = set()
+            self.inject_predicted_prob(series=series, series_name=series_name)
 
     def _check_series_name(self, proposed_name: Union[str, None]):
+        """
+        check and proposed name for a series into the panel is valid;
+        :param proposed_name: [str, None], if a proposed name for the series;
+        :return: a generated name or the valid proposed name;
+        """
         prefix = 'predicted_prob'
         if not proposed_name:
             suffix_index = 1
@@ -73,6 +77,11 @@ class ClassifierDataPanel(object):
         return proposed_name
 
     def rename_series(self, new_names: dict):
+        """
+        re-naming series;
+        :param new_names: dict, {previous name: new name};
+        :return:
+        """
         for previous_name, new_name in new_names.items():
             if previous_name in self.series:
                 new_name = self._check_series_name(proposed_name=new_name)
@@ -81,18 +90,39 @@ class ClassifierDataPanel(object):
     def inject_true_series(self,
                            series: Union[pd.Series, np.ndarray, list],
                            pos_label: Union[bool, str, int] = True):
+        """
+        inject a true series into the panel;
+        :param series: [pd.Series, np.ndarray, list, None], a series of true classes;
+        :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
+        :return:
+        """
+        self.series[_TRUE_SERIES_NAME] = data_type_converter(series=series)
 
-        self.series[_TRUE_SERIES_NAME] = _data_type_converter(series=series)
+        if pos_label is None:
+            pos_label = _DEFAULT_POS_LABEL
+        else:
+            pass
         self.pos_label = pos_label
 
     def inject_predicted_prob(self,
                               series: Union[pd.Series, np.ndarray, list],
-                              series_name: Union[str, None] = None):
+                              series_name: Optional[str] = None):
+        """
+        inject a predicted prob series into the panel;
+        :param series: [pd.Series, np.ndarray, list, None], a series of true classes;
+        :param series_name: [str, None], the name given to this series, if not given, auto generated name is given;
+        :return:
+        """
 
         series_name = self._check_series_name(proposed_name=series_name)
-        self.series[series_name] = _data_type_converter(series=series)
+        self.series[series_name] = data_type_converter(series=series)
 
     def __add__(self, series: Union[pd.Series, np.ndarray, list]):
+        """
+        add a series into the panel using an operator;
+        :param series: [pd.Series, np.ndarray, list, None], a series of true classes;
+        :return: the panel instance;
+        """
         if not self.series:
             self.inject_true_series(series=series)
         else:
@@ -101,89 +131,209 @@ class ClassifierDataPanel(object):
 
         return self
 
-    def remove_series(self, series_name):
+    def remove_series(self, series_name: str):
+        """
+        remove a series from the panel;
+        :param series_name: str, name of the series to be removed;
+        :return:
+        """
         if series_name not in self.series:
             raise SeriesNotFound(series_name)
 
         del self.series[series_name]
-        self.focus_series.discard(series_name)
-
-    def focus_on(self, *series_names):
-        self.focus_series = set()
-        for series_name in series_names:
-            if series_name in self.series:
-                self.focus_series.add(series_name)
 
 
 class ClassifierEvalPanel(ClassifierDataPanel):
-    def __init__(self, thresholds: Union[pd.Series, np.ndarray, list, None] = None,
-                 *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """
+    panel that perform classifier evaluations;
+    """
+
+    def __init__(self, *args, **kwargs):
+        """
+        params in ClassifierDataPanel;
+        :param thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
+        """
+        thresholds = kwargs.pop('thresholds', None)
+        pos_label = kwargs.pop('pos_label', None)
+
+        super().__init__(pos_label, *args, **kwargs)
         self.thresholds = None
         self.set_default_thresholds(thresholds=thresholds)
 
-    def set_default_thresholds(self, thresholds: Union[pd.Series, np.ndarray, list, None] = None):
-        if not thresholds:
+    def set_default_thresholds(self, thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None):
+        """
+        set default thresholds for confusion matrix by prob;
+        :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :return:
+        """
+        if thresholds is None:
             thresholds = _DEFAULT_THRESHOLDS
 
-        self.thresholds = _data_type_converter(series=thresholds)
+        self.thresholds = data_type_converter(series=thresholds)
 
-    def accuracy_rate_by_prob(self, threshold: Union[float, None] = None):
+    def accuracy_rate_by_prob(self,
+                              thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
+                              focus_series: Optional[Union[list, set]] = None):
+        """
+        compute accuracy rate for different thresholds for different predicted prob series;
+        :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :return: accuracy rates, dict, {series_name: {threshold: {'Accuracy': float}}, .. };
+        """
+        if thresholds is None:
+            thresholds = _DEFAULT_THRESHOLDS
+
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
+
         results = dict()
-        if not threshold:
-            threshold = _DEFAULT_THRESHOLD
-
-        for series_name, predicted_prob in self.series.items():
-            if series_name != _TRUE_SERIES_NAME:
+        for series_name, predicted_prob in selected_series.items():
+            results[series_name] = dict()
+            for threshold in thresholds:
                 accuracy_rate = accuracy_rate_by_prob(true=self.series[_TRUE_SERIES_NAME],
                                                       predicted_prob=predicted_prob,
                                                       threshold=threshold,
                                                       pos_label=self.pos_label)
 
-                results[series_name] = {'Accuracy': accuracy_rate}
+                results[series_name][threshold] = {'Accuracy': accuracy_rate}
 
         return results
 
-    def confusion_matrix_by_prob(self, thresholds: Union[list, None] = None,
-                                 output_metrics: Union[list, None] = None,
+    def recall_by_prob(self,
+                       thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
+                       focus_series: Optional[Union[list, set]] = None):
+        """
+        compute recall rate for different thresholds for different predicted prob series;
+        :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :return: recall rates, dict, {series_name: {threshold: {'Recall': float}}, .. };
+        """
+        if thresholds is None:
+            thresholds = _DEFAULT_THRESHOLDS
+
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
+
+        results = dict()
+        for series_name, predicted_prob in selected_series.items():
+            results[series_name] = dict()
+            for threshold in thresholds:
+                recall_rate = recall_rate_by_prob(true=self.series[_TRUE_SERIES_NAME],
+                                                  predicted_prob=predicted_prob,
+                                                  threshold=threshold,
+                                                  pos_label=self.pos_label)
+
+                results[series_name][threshold] = {'Recall': recall_rate}
+
+        return results
+
+    def precision_by_prob(self,
+                          thresholds: Optional[list] = None,
+                          focus_series: Optional[Union[list, set]] = None):
+        """
+        compute precision rate for different thresholds for different predicted prob series;
+        :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :return: precision rates, dict, {series_name: {threshold: {'precision': float}}, .. };
+        """
+        if thresholds is None:
+            thresholds = _DEFAULT_THRESHOLDS
+
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
+
+        results = dict()
+        for series_name, predicted_prob in selected_series.items():
+            results[series_name] = dict()
+            for threshold in thresholds:
+                recall_rate = precision_rate_by_prob(true=self.series[_TRUE_SERIES_NAME],
+                                                     predicted_prob=predicted_prob,
+                                                     threshold=threshold,
+                                                     pos_label=self.pos_label)
+
+                results[series_name][threshold] = {'Precision': recall_rate}
+
+        return results
+
+    def confusion_matrix_by_prob(self,
+                                 thresholds: Optional[list] = None,
+                                 output_metrics: Optional[list] = None,
+                                 focus_series: Optional[Union[list, set]] = None,
                                  table: bool = True):
-
-        results = dict()
-
-        if not thresholds:
+        """
+        confusion matrix for binary classification according to a given set of thresholds;
+        :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :param output_metrics: [list, None], metrics to be outputted if selected;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :param table: bool, if exported as a pd table table;
+        :return: confusion matrix results, [dict, pandas.DataFrame];
+        """
+        if thresholds is None:
             thresholds = self.thresholds
 
-        for series_name, predicted_prob in self.series.items():
-            if series_name != _TRUE_SERIES_NAME:
-                confusion_matrix_by_threshold = confusion_matrix_by_prob(true=self.series[_TRUE_SERIES_NAME],
-                                                                         predicted_prob=predicted_prob,
-                                                                         thresholds=thresholds,
-                                                                         pos_label=self.pos_label,
-                                                                         output_metrics=output_metrics,
-                                                                         table=table)
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
 
-                results[series_name] = {'metrics_by_thresholds': confusion_matrix_by_threshold}
+        results = dict()
+        for series_name, predicted_prob in selected_series.items():
+            confusion_matrix_by_threshold = confusion_matrix_by_prob(true=self.series[_TRUE_SERIES_NAME],
+                                                                     predicted_prob=predicted_prob,
+                                                                     thresholds=thresholds,
+                                                                     pos_label=self.pos_label,
+                                                                     output_metrics=output_metrics,
+                                                                     table=table)
+
+            results[series_name] = {'metrics_by_thresholds': confusion_matrix_by_threshold}
 
         return results
 
-    def roc(self, thresholds: Union[list, None] = None,
-            output_metrics: Union[list, None] = None,
-            table: bool = True):
+    def roc(self,
+            focus_series: Optional[Union[list, set]] = None,
+            auc: bool = False):
+        """
+        compute roc series;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :param auc: bool, if auc is also computed;
+        :return: roc series, dict; {series_name: {'roc': {'fpr': series, 'tpr': series, 'thresholds': series}}, ...}
+        """
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
 
         results = dict()
+        for series_name, predicted_prob in selected_series.items():
+            fpr, tpr, thresholds = roc(true=self.series[_TRUE_SERIES_NAME],
+                                       predicted_prob=predicted_prob,
+                                       pos_label=self.pos_label)
 
-        if not thresholds:
-            thresholds = self.thresholds
+            results[series_name] = {'roc': {'fpr': fpr, 'tpr': tpr, 'thresholds': thresholds}}
 
-        for series_name, predicted_prob in self.series.items():
-            if series_name != _TRUE_SERIES_NAME:
-                confusion_matrix_by_threshold = confusion_matrix_by_prob(true=self.series[_TRUE_SERIES_NAME],
-                                                                         predicted_prob=predicted_prob,
-                                                                         thresholds=thresholds,
-                                                                         pos_label=self.pos_label,
-                                                                         output_metrics=output_metrics,
-                                                                         table=table)
-
-                results[series_name] = {'metrics_by_thresholds': confusion_matrix_by_threshold}
+            if auc:
+                results[series_name]['auc'] = roc_auc(fpr=fpr, tpr=tpr, thresholds=thresholds)
 
         return results
+

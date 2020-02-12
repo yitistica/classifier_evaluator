@@ -1,0 +1,4 @@
+from classifier_evaluator import visualisations as vis
+from classifier_evaluator.eval_panel import ClassifierEvalPanel
+from classifier_evaluator import metrics
+

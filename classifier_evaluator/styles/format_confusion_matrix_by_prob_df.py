@@ -2,27 +2,27 @@
 reformat confusion matrix by prob data frame;
 """
 import pandas as pd
-from typing import Union
+from typing import Optional
 
 
-_CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': '{:,.0f}',
-                                  'FN': '{:,.0f}',
-                                  'FP': '{:,.0f}',
-                                  'TN': '{:,.0f}',
-                                  'Recall': '{:.3f}',
-                                  'FNR': '{:.3f}',
-                                  'FPR': '{:.3f}',
-                                  'TNR': '{:.3f}',
-                                  'Precision': '{:.3f}',
-                                  'FOR': '{:.3f}',
-                                  'FDR': '{:.3f}',
-                                  'NPV': '{:.3f}',
-                                  'Prevalence': '{:.3f}',
-                                  'Accuracy': '{:.3f}',
-                                  'LR+': '{:.3f}',
-                                  'LR-': '{:.3f}',
-                                  'DOR': '{:.2f}',
-                                  'F1': '{:.2f}'}
+_CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': 0,
+                                  'FN': 0,
+                                  'FP': 0,
+                                  'TN': 0,
+                                  'Recall': 3,
+                                  'FNR': 3,
+                                  'FPR': 3,
+                                  'TNR': 3,
+                                  'Precision': 3,
+                                  'FOR': 3,
+                                  'FDR': 3,
+                                  'NPV': 3,
+                                  'Prevalence': 3,
+                                  'Accuracy': 3,
+                                  'LR+': 3,
+                                  'LR-': 3,
+                                  'DOR': 3,
+                                  'F1': 3}
 
 
 _DEFAULT_METRIC_ORDER = ['TP', 'FN', 'FP', 'TN',
@@ -31,8 +31,17 @@ _DEFAULT_METRIC_ORDER = ['TP', 'FN', 'FP', 'TN',
                          'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
 
 
+def round_format(value, round_by):
+    if isinstance(value, str):
+        pass
+    else:
+        print(value, type(value))
+        value = round(value, round_by)
+    return value
+
+
 def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFrame,
-                                             digit_format: Union[dict, None] = None) -> pd.DataFrame:
+                                             digit_format: Optional[dict] = None) -> pd.DataFrame:
     """
     reformat the digit representations confusion matrix by prob data frame by:
         1. finding maximum number of decimal places for threshold series, and set such precision to each threshold,
@@ -62,21 +71,20 @@ def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFr
 
     max_no_threshold_decimal = max(metrics_by_thresholds_df['threshold'].apply(get_number_of_decimal_places))
 
-    threshold_decimal_format = '{:,.' + str(max_no_threshold_decimal) + 'f}'
-    metrics_by_thresholds_df['threshold'] = metrics_by_thresholds_df['threshold'].apply(threshold_decimal_format.format)
+    metrics_by_thresholds_df['threshold'] = metrics_by_thresholds_df['threshold'].apply(lambda x: round_format(x, max_no_threshold_decimal))
 
     if not digit_format:
         digit_format = _CONFUSION_MATRIX_DIGIT_FORMAT
 
     for metric, decimal_format in digit_format.items():
         if metric in metrics_by_thresholds_df.columns:
-            metrics_by_thresholds_df[metric] = metrics_by_thresholds_df[metric].apply(decimal_format.format)
+            metrics_by_thresholds_df[metric] = metrics_by_thresholds_df[metric].apply(lambda x: round_format(x, _CONFUSION_MATRIX_DIGIT_FORMAT[metric]))
 
     return metrics_by_thresholds_df
 
 
 def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
-                                               metric_order: Union[list, None] = None) -> pd.DataFrame:
+                                               metric_order: Optional[list] = None) -> pd.DataFrame:
     """
     reformat the confusion matrix by prob from dict format to data frame format;
 
@@ -109,8 +117,8 @@ def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
 
 
 def convert_confusion_matrix_by_prob_to_table_with_reformat_precision(metrics_by_thresholds: dict,
-                                                                      metric_order: Union[list, None] = None,
-                                                                      digit_format: Union[dict, None] = None) -> pd.DataFrame:
+                                                                      metric_order: Optional[list] = None,
+                                                                      digit_format: Optional[dict] = None) -> pd.DataFrame:
     """
     wrap function that perform conversion of confusion matrix by prob from dict to pandas.DataFrame with reformatting;
 

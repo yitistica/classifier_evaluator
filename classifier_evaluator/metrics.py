@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+"""
+Created on 2018-07-01, Last Modified on 2020-02-10;
+@author Yi.Q
+"""
 """
 Metrics to assess the performance on a classification model
 Measures are from: https://en.wikipedia.org/wiki/Confusion_matrix;
@@ -37,13 +42,15 @@ Terms and calculations:
     F1: 2 / ((1/Recall) + (1/Precision));
 """
 import numpy as np
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 from classifier_evaluator.styles.format_confusion_matrix_by_prob_df import convert_confusion_matrix_by_prob_to_table_with_reformat_precision
 
 _FULL_METRICS = ['TP', 'FN', 'FP', 'TN',
                  'Recall', 'FNR', 'FPR', 'TNR', 'Precision', 'FOR', 'FDR', 'NPV',
                  'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
+
+_DEFAULT_POS_LABEL = True
 
 
 def accuracy_rate(true: np.ndarray, predicted: np.ndarray) -> float:
@@ -60,7 +67,7 @@ def accuracy_rate(true: np.ndarray, predicted: np.ndarray) -> float:
 
 
 def accuracy_rate_by_prob(true: np.ndarray, predicted_prob: np.ndarray,
-                          threshold: float, pos_label: Union[str, bool, int] = True) -> float:
+                          threshold: float, pos_label: Union[str, bool, int] = _DEFAULT_POS_LABEL) -> float:
     """
     accuracy rate for binary classification according to a given threshold;
 
@@ -110,7 +117,7 @@ def _condition_counter(true: np.ndarray,
     else:
         raise TypeError(f"Type of true conditions {type(predicted_condition)} is not acceptable.")
 
-    return (np.isin(true, true_condition) & np.isin(predicted, predicted_condition)).sum()
+    return (np.isin(true, true_condition) & np.isin(predicted, predicted_condition)).sum().item()
 
 
 def prevalence(series: np.ndarray,
@@ -165,7 +172,7 @@ def recall_rate(true: np.ndarray,
 def recall_rate_by_prob(true: np.ndarray,
                         predicted_prob: np.ndarray,
                         threshold: float = 0.5,
-                        pos_label: Union[bool, int, str] = True) -> float:
+                        pos_label: Union[bool, int, str] = _DEFAULT_POS_LABEL) -> float:
     """
     compute recall rate when predicted prob is given, refer module description for calculation;
     :param true: numpy.ndarray(shape=(m), ), an array of true classes;
@@ -212,7 +219,7 @@ def precision_rate(true: np.ndarray,
 def precision_rate_by_prob(true: np.ndarray,
                            predicted_prob: np.ndarray,
                            threshold: float = 0.5,
-                           pos_label: Union[bool, int, str] = True) -> float:
+                           pos_label: Union[bool, int, str] = _DEFAULT_POS_LABEL) -> float:
     """
     compute precision rate when predicted prob is given, refer module description for calculation;
     :param true: numpy.ndarray(shape=(m), ), an array of true classes;
@@ -261,14 +268,14 @@ def confusion_matrix(true: np.ndarray, predicted: np.ndarray, normalize: Union[b
 
     if normalize:
         normalize_factor = 0 if normalize != 'predicted' else 1
-        normalized_confusion_matrix_dict = _normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
-                                                                       normalize_index=normalize_factor)
+        normalized_confusion_matrix_dict = normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
+                                                                      normalize_index=normalize_factor)
         return confusion_matrix_dict, normalized_confusion_matrix_dict
     else:
         return confusion_matrix_dict
 
 
-def _normalize_confusion_matrix(confusion_matrix_dict: dict, normalize_index: int = 0) -> dict:
+def normalize_confusion_matrix(confusion_matrix_dict: dict, normalize_index: int = 0) -> dict:
     """
     normalize a confusion matrix;
 
@@ -294,9 +301,9 @@ def _normalize_confusion_matrix(confusion_matrix_dict: dict, normalize_index: in
 
 def confusion_matrix_by_prob(true: np.ndarray,
                              predicted_prob: np.ndarray,
-                             thresholds: Union[list, tuple, np.ndarray, None] = None,
-                             pos_label: Union[bool, str, int] = True,
-                             output_metrics=None,
+                             thresholds: Optional[Union[list, tuple, np.ndarray]] = None,
+                             pos_label: Union[bool, str, int] = _DEFAULT_POS_LABEL,
+                             output_metrics: Optional[list] = None,
                              table: bool = True,
                              **kwargs):
     """
@@ -308,7 +315,7 @@ def confusion_matrix_by_prob(true: np.ndarray,
     :param thresholds: [list, tuple, np.array, None] the thresholds set on predicted probabilities
         such that any predicted probability greater or equal to the threshold will be classified as the positive class;
     :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
-    :param output_metrics: list, metrics to be outputted if selected;
+    :param output_metrics: [list, None], metrics to be outputted if selected;
     :param table: bool, if exported as a pd table table;
     :return: dict, a set of confusion matrices, {threshold: {metric_name: metric_value, ...}, ...};
     """
@@ -333,11 +340,11 @@ def confusion_matrix_by_prob(true: np.ndarray,
         predicted = predicted_prob >= threshold
         confusion_matrix_dict = confusion_matrix(true=true, predicted=predicted, normalize=False)
 
-        confusion_matrix_nor_true = _normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
-                                                                normalize_index=0)
+        confusion_matrix_nor_true = normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
+                                                               normalize_index=0)
 
-        confusion_matrix_nor_predicted = _normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
-                                                                     normalize_index=1)
+        confusion_matrix_nor_predicted = normalize_confusion_matrix(confusion_matrix_dict=confusion_matrix_dict,
+                                                                    normalize_index=1)
 
         if 'TP' in output_metrics:
             metrics_by_threshold['TP'] = confusion_matrix_dict[(True, True)]
@@ -491,17 +498,19 @@ def roc_auc(**kwargs) -> float:
         if 'pos_label' in kwargs:
             pos_label = kwargs['pos_label']
         else:
-            pos_label = True  # set it to its True as default(!);
+            pos_label = _DEFAULT_POS_LABEL
 
         fpr, tpr, thresholds = roc(true=kwargs['true'], predicted_prob=kwargs['predicted_prob'], pos_label=pos_label)
     else:
         raise KeyError(f"given arguments are not sufficient to compute AUC.")
 
-    fpr, tpr = np.insert(fpr, 0, 1), np.insert(tpr, 0, 1)  # add 1 to the first position of the array;
-    fpr, tpr = np.append(fpr, 0), np.append(tpr, 0)  # add 0 to the last position of the arrays;
+    # fpr, tpr = np.insert(fpr, 0, 1), np.insert(tpr, 0, 1)  # add 1 to the first position of the array;
+    # fpr, tpr = np.append(fpr, 0), np.append(tpr, 0)  # add 0 to the last position of the arrays;
 
-    auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * (- np.diff(fpr))))
-
+    fpr, tpr = np.insert(fpr, 0, 0), np.insert(tpr, 0, 0)  # add 0 to the first position of the array;
+    fpr, tpr = np.append(fpr, 1), np.append(tpr, 1)  # add 1 to the last position of the arrays;
+    # auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * (- np.diff(fpr))))  # reverse as roc is cal differently;
+    auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * np.diff(fpr)))
     return auc
 
 
@@ -535,7 +544,7 @@ def roc_margins(**kwargs) -> dict:
         if 'pos_label' in kwargs:
             pos_label = kwargs['pos_label']
         else:
-            pos_label = True  # set it to its True as default(!);
+            pos_label = _DEFAULT_POS_LABEL
 
         fpr, tpr, thresholds = roc(true=kwargs['true'], predicted_prob=kwargs['predicted_prob'], pos_label=pos_label)
     else:
