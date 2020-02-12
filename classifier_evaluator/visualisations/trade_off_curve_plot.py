@@ -91,7 +91,7 @@ def plot_trade_off_curves(roc_dict: dict, **kwargs):
 
         ax0.plot(thresholds, fpr, lw=line_width, linestyle='-', alpha=1,
                  label=f"Model {model_name} with TPR = {str(round(tpr[margins.argmax()], 3))} "
-                       f"and FPR = {str(round(fpr[margins.argmax()], 3))} at max_margin margins threshold.",
+                       f"and FPR = {str(round(fpr[margins.argmax()], 3))}.",
                  color=colors[_index])  # fpr line;
         ax0.plot(thresholds, tpr, lw=line_width, linestyle='-', alpha=1, color=colors[_index])  # tpr line;
 
@@ -127,10 +127,3 @@ def plot_trade_off_curves(roc_dict: dict, **kwargs):
             plt.savefig(saved_file_name)
 
     plt.show()
-
-
-TRUE_PROB_SERIES = np.array(['F', 'F', 'F', 'T', 'F', 'T', 'T', 'F', 'T', 'F'])
-PREDICTED_PROB_SERIES = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1])
-# PREDICTED_PROB_SERIES_2 = np.array([0, 0.1, 0.15, 0.7, 0.5, 0.4, 0.6, 0.8, 0.7, 1])
-
-plot_trade_off_curves({'a': {'true': TRUE_PROB_SERIES, 'predicted_prob': PREDICTED_PROB_SERIES, 'pos_label': 'T'}})

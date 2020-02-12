@@ -14,6 +14,6 @@ def data_type_converter(series: Union[pd.Series, np.ndarray, list]) -> np.ndarra
     elif isinstance(series, np.ndarray):
         pass
     elif isinstance(series, pd.Series):
-        series = series.values()
+        series = series.values
 
     return series

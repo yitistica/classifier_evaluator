@@ -56,7 +56,7 @@ def plot_confusion_matrix_by_dict(confusion_matrix_dict: dict,
                 confusion_matrix_dict[(true_class, predicted_class)]
 
     confusion_matrix = np.vstack([confusion_matrix, confusion_matrix.sum(axis=0)])
-    confusion_matrix = np.hstack([confusion_matrix, confusion_matrix.sum(axis=1).reshape(7, 1)])
+    confusion_matrix = np.hstack([confusion_matrix, confusion_matrix.sum(axis=1).reshape(confusion_matrix.shape[0], 1)])
 
     # confusion matrix scaled by true label:
     confusion_matrix_nor_true = np.divide(confusion_matrix, confusion_matrix[:, -1][:, None],
@@ -126,7 +126,7 @@ def plot_confusion_matrix_by_dict(confusion_matrix_dict: dict,
             plt.text(j, i, annotation_text,
                      horizontalalignment="center",
                      verticalalignment="center",
-                     color="white" if confusion_matrix[i, j] > thresh else "black")
+                     color="white" if confusion_matrix_nor_true[i, j] > thresh else "black")
 
         else:
             num_annotation = r"$\bf{" + str(int(confusion_matrix[i, j])) + "}$" + "\n"
@@ -142,7 +142,7 @@ def plot_confusion_matrix_by_dict(confusion_matrix_dict: dict,
             plt.text(j, i, annotation_text,
                      horizontalalignment="center",
                      verticalalignment="center",
-                     color="white" if confusion_matrix[i, j] > thresh else "black")
+                     color="white" if confusion_matrix_nor_true[i, j] > thresh else "black")
 
     # add text for the last col (sum):
     last_index = confusion_matrix.shape[0] - 1
@@ -209,9 +209,3 @@ def plot_confusion_matrix_on_predicted_series(true_series: Union[pd.Series, np.n
     plot_confusion_matrix_by_dict(confusion_matrix_dict=confusion_matrix_dict,
                                   class_order=class_order, **kwargs)
 
-
-TRUE_SERIES = np.array(['A', 'A', 'A', 'B', 'B', 'C', 'C', 'D', 'E'])
-PREDICTED_SERIES = np.array(['A', 'A', 'B', 'B', 'D', 'C', 'C', 'C', 'F'])
-
-
-plot_confusion_matrix_on_predicted_series(TRUE_SERIES, PREDICTED_SERIES, class_order=['A', 'B', 'C', 'D', 'E', 'F'], save='abc.png')

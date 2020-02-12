@@ -5,30 +5,39 @@ import pandas as pd
 from typing import Optional
 
 
-_CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': '{:,.0f}',
-                                  'FN': '{:,.0f}',
-                                  'FP': '{:,.0f}',
-                                  'TN': '{:,.0f}',
-                                  'Recall': '{:.3f}',
-                                  'FNR': '{:.3f}',
-                                  'FPR': '{:.3f}',
-                                  'TNR': '{:.3f}',
-                                  'Precision': '{:.3f}',
-                                  'FOR': '{:.3f}',
-                                  'FDR': '{:.3f}',
-                                  'NPV': '{:.3f}',
-                                  'Prevalence': '{:.3f}',
-                                  'Accuracy': '{:.3f}',
-                                  'LR+': '{:.3f}',
-                                  'LR-': '{:.3f}',
-                                  'DOR': '{:.2f}',
-                                  'F1': '{:.2f}'}
+_CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': 0,
+                                  'FN': 0,
+                                  'FP': 0,
+                                  'TN': 0,
+                                  'Recall': 3,
+                                  'FNR': 3,
+                                  'FPR': 3,
+                                  'TNR': 3,
+                                  'Precision': 3,
+                                  'FOR': 3,
+                                  'FDR': 3,
+                                  'NPV': 3,
+                                  'Prevalence': 3,
+                                  'Accuracy': 3,
+                                  'LR+': 3,
+                                  'LR-': 3,
+                                  'DOR': 3,
+                                  'F1': 3}
 
 
 _DEFAULT_METRIC_ORDER = ['TP', 'FN', 'FP', 'TN',
                          'Recall', 'FNR', 'FPR', 'TNR',
                          'Precision', 'FOR', 'FDR', 'NPV',
                          'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
+
+
+def round_format(value, round_by):
+    if isinstance(value, str):
+        pass
+    else:
+        print(value, type(value))
+        value = round(value, round_by)
+    return value
 
 
 def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFrame,
@@ -62,15 +71,14 @@ def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFr
 
     max_no_threshold_decimal = max(metrics_by_thresholds_df['threshold'].apply(get_number_of_decimal_places))
 
-    threshold_decimal_format = '{:,.' + str(max_no_threshold_decimal) + 'f}'
-    metrics_by_thresholds_df['threshold'] = metrics_by_thresholds_df['threshold'].apply(threshold_decimal_format.format)
+    metrics_by_thresholds_df['threshold'] = metrics_by_thresholds_df['threshold'].apply(lambda x: round_format(x, max_no_threshold_decimal))
 
     if not digit_format:
         digit_format = _CONFUSION_MATRIX_DIGIT_FORMAT
 
     for metric, decimal_format in digit_format.items():
         if metric in metrics_by_thresholds_df.columns:
-            metrics_by_thresholds_df[metric] = metrics_by_thresholds_df[metric].apply(decimal_format.format)
+            metrics_by_thresholds_df[metric] = metrics_by_thresholds_df[metric].apply(lambda x: round_format(x, _CONFUSION_MATRIX_DIGIT_FORMAT[metric]))
 
     return metrics_by_thresholds_df
 

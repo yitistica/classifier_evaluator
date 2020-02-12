@@ -117,7 +117,7 @@ def _condition_counter(true: np.ndarray,
     else:
         raise TypeError(f"Type of true conditions {type(predicted_condition)} is not acceptable.")
 
-    return (np.isin(true, true_condition) & np.isin(predicted, predicted_condition)).sum()
+    return (np.isin(true, true_condition) & np.isin(predicted, predicted_condition)).sum().item()
 
 
 def prevalence(series: np.ndarray,
@@ -504,11 +504,13 @@ def roc_auc(**kwargs) -> float:
     else:
         raise KeyError(f"given arguments are not sufficient to compute AUC.")
 
-    fpr, tpr = np.insert(fpr, 0, 1), np.insert(tpr, 0, 1)  # add 1 to the first position of the array;
-    fpr, tpr = np.append(fpr, 0), np.append(tpr, 0)  # add 0 to the last position of the arrays;
+    # fpr, tpr = np.insert(fpr, 0, 1), np.insert(tpr, 0, 1)  # add 1 to the first position of the array;
+    # fpr, tpr = np.append(fpr, 0), np.append(tpr, 0)  # add 0 to the last position of the arrays;
 
-    auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * (- np.diff(fpr))))
-
+    fpr, tpr = np.insert(fpr, 0, 0), np.insert(tpr, 0, 0)  # add 0 to the first position of the array;
+    fpr, tpr = np.append(fpr, 1), np.append(tpr, 1)  # add 1 to the last position of the arrays;
+    # auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * (- np.diff(fpr))))  # reverse as roc is cal differently;
+    auc = float(np.sum(1 / 2 * (tpr[0:-1] + tpr[1:]) * np.diff(fpr)))
     return auc
 
 

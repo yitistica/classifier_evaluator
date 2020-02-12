@@ -101,11 +101,3 @@ def plot_roc(roc_dict: dict, **kwargs):
             plt.savefig(saved_file_name)
 
     plt.show()
-
-
-TRUE_PROB_SERIES = np.array(['F', 'F', 'F', 'T', 'F', 'T', 'T', 'F', 'T', 'F'])
-PREDICTED_PROB_SERIES = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1])
-PREDICTED_PROB_SERIES_2 = np.array([0, 0.1, 0.15, 0.7, 0.5, 0.4, 0.6, 0.8, 0.7, 1])
-
-plot_roc({'a': {'true': TRUE_PROB_SERIES, 'predicted_prob': PREDICTED_PROB_SERIES, 'pos_label': 'T'},
-          'b': {'true': TRUE_PROB_SERIES, 'predicted_prob': PREDICTED_PROB_SERIES_2, 'pos_label': 'T'}})

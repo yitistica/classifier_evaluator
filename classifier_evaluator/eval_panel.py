@@ -6,6 +6,7 @@ from classifier_evaluator.pre_process import data_type_converter
 from classifier_evaluator.metrics import accuracy_rate_by_prob, recall_rate_by_prob, precision_rate_by_prob, \
     confusion_matrix_by_prob, roc, roc_auc
 
+_DEFAULT_POS_LABEL = True
 
 _DEFAULT_THRESHOLD = 0.5
 
@@ -30,32 +31,29 @@ class ClassifierDataPanel(object):
     """
 
     def __init__(self,
+                 pos_label: Optional[Union[bool, str, int]] = None,
                  true_series: Optional[Union[pd.Series, np.ndarray, list]] = None,
-                 pos_label: Union[bool, str, int] = True,
                  *predicted_prob_series: Union[pd.Series, np.ndarray, list],
                  **named_predicted_prob_series: Union[pd.Series, np.ndarray, list]):
         """
-        :param true_series: [pd.Series, np.ndarray, list, None], a series of true classes;
         :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
+        :param true_series: [pd.Series, np.ndarray, list, None], a series of true classes;
         :param predicted_prob_series: [pd.Series, np.ndarray, list, None],
             a series of predicted probabilities of being the positive class (without a given name);
         :param named_predicted_prob_series: [pd.Series, np.ndarray, list, None],
             a series of predicted probabilities of being the positive class (with a given name);
         """
-
         self.series = dict()
         self.pos_label = None
 
-        if true_series:
+        if true_series is not None:
             self.inject_true_series(series=true_series, pos_label=pos_label)
 
         for series in predicted_prob_series:
-            series_name = self._check_series_name(proposed_name=None)
-            self.series[series_name] = series
+            self.inject_predicted_prob(series=series, series_name=None)
 
         for series_name, series in named_predicted_prob_series.items():
-            series_name = self._check_series_name(proposed_name=series_name)
-            self.series[series_name] = series
+            self.inject_predicted_prob(series=series, series_name=series_name)
 
     def _check_series_name(self, proposed_name: Union[str, None]):
         """
@@ -99,6 +97,11 @@ class ClassifierDataPanel(object):
         :return:
         """
         self.series[_TRUE_SERIES_NAME] = data_type_converter(series=series)
+
+        if pos_label is None:
+            pos_label = _DEFAULT_POS_LABEL
+        else:
+            pass
         self.pos_label = pos_label
 
     def inject_predicted_prob(self,
@@ -145,13 +148,15 @@ class ClassifierEvalPanel(ClassifierDataPanel):
     panel that perform classifier evaluations;
     """
 
-    def __init__(self, thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
-                 *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
         params in ClassifierDataPanel;
-
+        :param thresholds: Optional[Union[pd.Series, np.ndarray, list]] = None,
         """
-        super().__init__(*args, **kwargs)
+        thresholds = kwargs.pop('thresholds', None)
+        pos_label = kwargs.pop('pos_label', None)
+
+        super().__init__(pos_label, *args, **kwargs)
         self.thresholds = None
         self.set_default_thresholds(thresholds=thresholds)
 
@@ -162,7 +167,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         be classified as positive, if None is given, it will use the default threshold series;
         :return:
         """
-        if not thresholds:
+        if thresholds is None:
             thresholds = _DEFAULT_THRESHOLDS
 
         self.thresholds = data_type_converter(series=thresholds)
@@ -177,7 +182,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
         :return: accuracy rates, dict, {series_name: {threshold: {'Accuracy': float}}, .. };
         """
-        if not thresholds:
+        if thresholds is None:
             thresholds = _DEFAULT_THRESHOLDS
 
         if not focus_series:
@@ -210,7 +215,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
         :return: recall rates, dict, {series_name: {threshold: {'Recall': float}}, .. };
         """
-        if not thresholds:
+        if thresholds is None:
             thresholds = _DEFAULT_THRESHOLDS
 
         if not focus_series:
@@ -243,7 +248,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
         :return: precision rates, dict, {series_name: {threshold: {'precision': float}}, .. };
         """
-        if not thresholds:
+        if thresholds is None:
             thresholds = _DEFAULT_THRESHOLDS
 
         if not focus_series:
@@ -280,7 +285,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         :param table: bool, if exported as a pd table table;
         :return: confusion matrix results, [dict, pandas.DataFrame];
         """
-        if not thresholds:
+        if thresholds is None:
             thresholds = self.thresholds
 
         if not focus_series:
