@@ -56,3 +56,15 @@ _**roc plot**_
 
 _**trade off plot**_
 <p align="center"> <img src='readme/trade_off_svm_v_rf.png' align="center" height="700px"> </p>
+
+
+#### 3. Dual Threshold Confusion Matrix
+Dual threshold confusion matrix is also provided when we only choose predict the classes for a subset of observations, when we are confident, i.e., the predicted prob 
+is very low (close to negative class) and very high (close to positive class), leaving the doubtful prediction ineffective. This can be used when we want to deploy discriminative policies regarding
+the results of our prediction. The following is an example with two set of threshold bounds:  
+
+|    |   l_threshold |   u_threshold |   TP |   FN |   FP |   TN |   Recall |   FNR |   FPR |   TNR |   Precision |   FOR |   FDR |   NPV |   Prevalence |   Accuracy |   LR+ |   LR- |    DOR |    F1 |   Open_Count |   Open_Positive |   Open_Negative |   Open_Prevalence |
+|---:|--------------:|--------------:|-----:|-----:|-----:|-----:|---------:|------:|------:|------:|------------:|------:|------:|------:|-------------:|-----------:|------:|------:|-------:|------:|-------------:|----------------:|----------------:|------------------:|
+|  0 |           0.4 |           0.6 |   96 |   33 |   28 |  181 |    0.744 | 0.256 | 0.134 | 0.866 |       0.774 | 0.154 | 0.226 | 0.846 |        0.382 |       0.82 | 5.555 | 0.295 | 18.805 | 0.759 |           19 |               7 |              12 |          0.368421 |
+|  1 |           0.5 |           0.6 |   96 |   34 |   28 |  186 |    0.738 | 0.262 | 0.131 | 0.869 |       0.774 | 0.155 | 0.226 | 0.845 |        0.378 |       0.82 | 5.644 | 0.301 | 18.756 | 0.756 |           13 |               6 |               7 |          0.461538 |
+

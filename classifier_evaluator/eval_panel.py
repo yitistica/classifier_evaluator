@@ -4,7 +4,7 @@ import pandas as pd
 
 from classifier_evaluator.pre_process import data_type_converter
 from classifier_evaluator.metrics import accuracy_rate_by_prob, recall_rate_by_prob, precision_rate_by_prob, \
-    confusion_matrix_by_prob, roc, roc_auc
+    confusion_matrix_by_prob, confusion_matrix_by_prob_with_dual_thresholds, roc, roc_auc
 
 _DEFAULT_POS_LABEL = True
 
@@ -275,7 +275,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
                                  thresholds: Optional[list] = None,
                                  output_metrics: Optional[list] = None,
                                  focus_series: Optional[Union[list, set]] = None,
-                                 table: bool = True):
+                                 table: bool = True, **kwargs):
         """
         confusion matrix for binary classification according to a given set of thresholds;
         :param thresholds: [pd.Series, np.ndarray, list, None], a series of thresholds over which predicted prob will
@@ -283,6 +283,7 @@ class ClassifierEvalPanel(ClassifierDataPanel):
         :param output_metrics: [list, None], metrics to be outputted if selected;
         :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
         :param table: bool, if exported as a pd table table;
+        :param kwargs: other keyword arguments passed into
         :return: confusion matrix results, [dict, pandas.DataFrame];
         """
         if thresholds is None:
@@ -302,7 +303,46 @@ class ClassifierEvalPanel(ClassifierDataPanel):
                                                                      thresholds=thresholds,
                                                                      pos_label=self.pos_label,
                                                                      output_metrics=output_metrics,
-                                                                     table=table)
+                                                                     table=table, **kwargs)
+
+            results[series_name] = {'metrics_by_thresholds': confusion_matrix_by_threshold}
+
+        return results
+
+    def confusion_matrix_by_dual_prob(self,
+                                      threshold_bounds: Union[list, tuple, set],
+                                      output_metrics: Optional[list] = None,
+                                      unclassified_output_metrics: Optional[list] = None,
+                                      focus_series: Optional[Union[list, set]] = None,
+                                      table: bool = True, **kwargs):
+        """
+        confusion matrix for binary classification according to a given set of dual thresholds;
+        :param threshold_bounds: Union[list, tuple, set], a series of thresholds over which predicted prob will
+        be classified as positive, if None is given, it will use the default threshold series;
+        :param output_metrics: [list, None], metrics to be outputted if selected;
+        :param unclassified_output_metrics: [list, None], unclassified metrics to be outputted if selected;
+        :param focus_series: [list, set], names of the predicted prob series that metrics are run on;
+        :param table: bool, if exported as a pd table table;
+        :param kwargs: other keyword arguments passed into
+        :return: confusion matrix results, [dict, pandas.DataFrame];
+        """
+
+        if not focus_series:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name != _TRUE_SERIES_NAME}
+        else:
+            selected_series = {series_name: series for series_name, series in self.series.items()
+                               if series_name in focus_series}
+
+        results = dict()
+        for series_name, predicted_prob in selected_series.items():
+            confusion_matrix_by_threshold = confusion_matrix_by_prob_with_dual_thresholds(true=self.series[_TRUE_SERIES_NAME],
+                                                                                          predicted_prob=predicted_prob,
+                                                                                          threshold_bounds=threshold_bounds,
+                                                                                          pos_label=self.pos_label,
+                                                                                          output_metrics=output_metrics,
+                                                                                          unclassified_output_metrics=unclassified_output_metrics,
+                                                                                          table=table, **kwargs)
 
             results[series_name] = {'metrics_by_thresholds': confusion_matrix_by_threshold}
 

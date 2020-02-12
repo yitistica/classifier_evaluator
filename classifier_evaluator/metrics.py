@@ -50,6 +50,8 @@ _FULL_METRICS = ['TP', 'FN', 'FP', 'TN',
                  'Recall', 'FNR', 'FPR', 'TNR', 'Precision', 'FOR', 'FDR', 'NPV',
                  'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
 
+_FULL_METRICS_DUAL = ['Open_Count', 'Open_Positive', 'Open_Negative', 'Open_Prevalence']
+
 _DEFAULT_POS_LABEL = True
 
 
@@ -317,6 +319,9 @@ def confusion_matrix_by_prob(true: np.ndarray,
     :param pos_label: [str, bool, int], positive class label, label that is considered as the positive class;
     :param output_metrics: [list, None], metrics to be outputted if selected;
     :param table: bool, if exported as a pd table table;
+    :param kwargs:
+        :param metric_order: [list, None], if table is selected to be the output, metric order specifies the order of
+            metrics presented in the table;
     :return: dict, a set of confusion matrices, {threshold: {metric_name: metric_value, ...}, ...};
     """
     # convert true series to positive series
@@ -432,6 +437,76 @@ def confusion_matrix_by_prob(true: np.ndarray,
                                                                               metric_order=metric_order)
 
     return metrics_by_thresholds
+
+
+def confusion_matrix_by_prob_with_dual_thresholds(true: np.ndarray,
+                                                  predicted_prob: np.ndarray,
+                                                  threshold_bounds: Union[list, tuple, set],
+                                                  pos_label: Union[bool, str, int] = _DEFAULT_POS_LABEL,
+                                                  output_metrics: Optional[list] = None,
+                                                  unclassified_output_metrics: Optional[list] = None,
+                                                  table: bool = True,
+                                                  **kwargs):
+
+    # modify threshold bound in case of only one threshold bound given:
+    if isinstance(threshold_bounds, tuple) and isinstance(threshold_bounds[0], float):
+        threshold_bounds = [threshold_bounds]
+
+    # select output:
+    if isinstance(unclassified_output_metrics, list):
+        for selected_metric in unclassified_output_metrics:
+            if selected_metric not in _FULL_METRICS_DUAL:
+                raise KeyError(f"metric {selected_metric} is not recognized.")
+    else:
+        unclassified_output_metrics = _FULL_METRICS_DUAL
+
+    metrics_by_thresholds_dual = dict()
+    for threshold_bound in threshold_bounds:
+        # filtering data below lower threshold and upper threshold:
+        lower_threshold, upper_threshold = threshold_bound
+        true_sub = true[(predicted_prob <= lower_threshold) | (predicted_prob >= upper_threshold)]
+        predicted_sub = predicted_prob[(predicted_prob <= lower_threshold) | (predicted_prob >= upper_threshold)]
+        predicted_sub = (predicted_sub >= upper_threshold)  # all predicted_sub over upper threshold is set to 1:
+        true_unclassified = true[(predicted_prob > lower_threshold) & (predicted_prob < upper_threshold)]
+
+        metrics_by_thresholds = confusion_matrix_by_prob(true=true_sub,
+                                                         predicted_prob=predicted_sub,
+                                                         thresholds=[0.5],
+                                                         pos_label=pos_label,
+                                                         output_metrics=output_metrics,
+                                                         table=False)
+
+        # unpack structure:
+        metrics_by_threshold = metrics_by_thresholds[0.5]  # default set to 0.5;
+
+        # additional metrics:
+        if 'Open_Count' in unclassified_output_metrics:
+            metrics_by_threshold['Open_Count'] = len(true_unclassified)
+
+        if 'Open_Positive' in unclassified_output_metrics:
+            metrics_by_threshold['Open_Positive'] = (true_unclassified == pos_label).sum().item()
+
+        if 'Open_Negative' in unclassified_output_metrics:
+            metrics_by_threshold['Open_Negative'] = (true_unclassified != pos_label).sum().item()
+
+        if 'Open_Prevalence' in unclassified_output_metrics:
+            try:
+                metrics_by_threshold['Open_Prevalence'] = (true_unclassified == pos_label).sum().item() / len(true_unclassified)
+            except ZeroDivisionError:
+                metrics_by_threshold['Open_Prevalence'] = '-'
+
+        metrics_by_thresholds_dual[threshold_bound] = metrics_by_threshold
+
+    if table:
+        if 'metric_order' in kwargs:
+            metric_order = kwargs['metric_order']
+        else:
+            metric_order = None
+        metrics_by_thresholds_dual = \
+            convert_confusion_matrix_by_prob_to_table_with_reformat_precision(metrics_by_thresholds=metrics_by_thresholds_dual,
+                                                                              metric_order=metric_order)
+
+    return metrics_by_thresholds_dual
 
 
 def roc(true: np.ndarray, predicted_prob: np.ndarray, pos_label: Union[bool, str, int] = True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:

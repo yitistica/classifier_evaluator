@@ -28,14 +28,14 @@ _CONFUSION_MATRIX_DIGIT_FORMAT = {'TP': 0,
 _DEFAULT_METRIC_ORDER = ['TP', 'FN', 'FP', 'TN',
                          'Recall', 'FNR', 'FPR', 'TNR',
                          'Precision', 'FOR', 'FDR', 'NPV',
-                         'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1']
+                         'Prevalence', 'Accuracy', 'LR+', 'LR-', 'DOR', 'F1',
+                         'Open_Count', 'Open_Positive', 'Open_Negative', 'Open_Prevalence']
 
 
 def round_format(value, round_by):
     if isinstance(value, str):
         pass
     else:
-        print(value, type(value))
         value = round(value, round_by)
     return value
 
@@ -69,9 +69,15 @@ def _reformat_digit_confusion_matrix_by_prob(metrics_by_thresholds_df: pd.DataFr
 
         return decimal_no
 
-    max_no_threshold_decimal = max(metrics_by_thresholds_df['threshold'].apply(get_number_of_decimal_places))
+    if ('l_threshold' in metrics_by_thresholds_df.columns) and ('u_threshold' in metrics_by_thresholds_df.columns):
+        threshold_cols = ['l_threshold', 'u_threshold']
+    else:
+        threshold_cols = ['threshold']
 
-    metrics_by_thresholds_df['threshold'] = metrics_by_thresholds_df['threshold'].apply(lambda x: round_format(x, max_no_threshold_decimal))
+    for threshold_col in threshold_cols:
+        max_no_threshold_decimal = max(metrics_by_thresholds_df[threshold_col].apply(get_number_of_decimal_places))
+
+        metrics_by_thresholds_df[threshold_col] = metrics_by_thresholds_df[threshold_col].apply(lambda x: round_format(x, max_no_threshold_decimal))
 
     if not digit_format:
         digit_format = _CONFUSION_MATRIX_DIGIT_FORMAT
@@ -95,13 +101,26 @@ def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
         if the item is in the metric order but not presented in metrics_by_thresholds, it will be ignored;
     :return: confusion_matrix_by_prob_to_table, pandas.DataFrame;
     """
+    _if_dual_threshold = False
     for threshold, metrics in metrics_by_thresholds.items():
-        metrics['threshold'] = threshold
+        if isinstance(threshold, float):
+            metrics['threshold'] = threshold
+        elif isinstance(threshold, tuple):
+            metrics['l_threshold'], metrics['u_threshold'] = threshold
+            if not _if_dual_threshold:  # avoid calculating again and again;
+                _if_dual_threshold = True
+        else:
+            raise ValueError(f"threshold {threshold} is not recognized of it type.")
 
     if not metric_order:
         metric_order = _DEFAULT_METRIC_ORDER
 
-    metric_order = ['threshold'] + [column for column in metric_order if column in list(metrics_by_thresholds.values())[0]]
+    if _if_dual_threshold:
+        threshold_cols = ['l_threshold', 'u_threshold']
+    else:
+        threshold_cols = ['threshold']
+
+    metric_order = threshold_cols + [column for column in metric_order if column in list(metrics_by_thresholds.values())[0]]
 
     metric_order += [column for column in list(metrics_by_thresholds.values())[0] if column not in metric_order]
 
@@ -110,7 +129,7 @@ def _convert_confusion_matrix_by_prob_to_table(metrics_by_thresholds: dict,
 
     metrics_by_thresholds_df = metrics_by_thresholds_df[metric_order]
 
-    metrics_by_thresholds_df = metrics_by_thresholds_df.sort_values(by='threshold', ascending=True)
+    metrics_by_thresholds_df = metrics_by_thresholds_df.sort_values(by=threshold_cols[0], ascending=True)
     metrics_by_thresholds_df = metrics_by_thresholds_df.reset_index(drop=True)
 
     return metrics_by_thresholds_df
