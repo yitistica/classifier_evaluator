@@ -62,8 +62,8 @@ _**trade off plot**_
 
 
 #### 3. Dual Threshold Confusion Matrix
-Dual threshold confusion matrix is also provided when we only choose predict the classes for a subset of observations, when we are confident, i.e., the predicted prob 
-is very low (close to negative class) and very high (close to positive class), leaving the doubtful prediction ineffective. This can be used when we want to deploy discriminative policies regarding
+Dual threshold confusion matrix is also provided when we want to neglect the subset of observations with predicted probabilities bounded between the lower and the upper thresholds, i.e., only make prediction on a sample where their predicted prob 
+is very low (close to negative class) or very high (close to positive class), and ignore the "doubtful" predictions. This can be used when we want to deploy discriminative policies regarding
 the results of our prediction. The following is an example with two set of threshold bounds:  
 
 |    |   l_threshold |   u_threshold |   TP |   FN |   FP |   TN |   Recall |   FNR |   FPR |   TNR |   Precision |   FOR |   FDR |   NPV |   Prevalence |   Accuracy |   LR+ |   LR- |    DOR |    F1 |   Open_Count |   Open_Positive |   Open_Negative |   Open_Prevalence |
