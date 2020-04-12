@@ -1,1 +1,1 @@
-from src.classifier_evaluator.visualisations.trade_off_curve_plot import plot_trade_off_curves
+from classifier_evaluator.visualisations.trade_off_curve_plot import plot_trade_off_curves
