@@ -15,6 +15,9 @@ The evaluation metrics include:
 - Visualisations of multiple curves;
 - Dual-Threshold;
 
+## Installation
+`$ pip install --upgrade git+https://github.com/yitistica/classifier_evaluator.git`
+
 ## Usage
 
 #### 1. Using Standalone Metrics
@@ -67,4 +70,8 @@ the results of our prediction. The following is an example with two set of thres
 |---:|--------------:|--------------:|-----:|-----:|-----:|-----:|---------:|------:|------:|------:|------------:|------:|------:|------:|-------------:|-----------:|------:|------:|-------:|------:|-------------:|----------------:|----------------:|------------------:|
 |  0 |           0.4 |           0.6 |   96 |   33 |   28 |  181 |    0.744 | 0.256 | 0.134 | 0.866 |       0.774 | 0.154 | 0.226 | 0.846 |        0.382 |       0.82 | 5.555 | 0.295 | 18.805 | 0.759 |           19 |               7 |              12 |          0.368421 |
 |  1 |           0.5 |           0.6 |   96 |   34 |   28 |  186 |    0.738 | 0.262 | 0.131 | 0.869 |       0.774 | 0.155 | 0.226 | 0.845 |        0.378 |       0.82 | 5.644 | 0.301 | 18.756 | 0.756 |           13 |               6 |               7 |          0.461538 |
+
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
+
 
